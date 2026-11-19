@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { Trash2 } from 'lucide-react';
-import { img } from '@/lib/hooks';
 import { Store, mutate, statsOf, verdictOf, fmtDate, fmtDur, activityOf, prettySite } from '@/lib/model';
+import { Frame, Row } from '@/components/kit';
 import { go } from './App';
 
 export default function History({ store }: { store: Store }) {
@@ -34,49 +33,69 @@ export default function History({ store }: { store: Store }) {
   };
 
   return (
-    <div className="px-5 md:px-10 pt-28 pb-24 max-w-[1400px]">
-      <div className="grid md:grid-cols-[minmax(0,1fr)_auto] gap-10 items-end">
-        <h1 className="display text-[clamp(60px,10vw,160px)]">Case<br /><span className="text-red">files.</span></h1>
+    <div className="pt-12 px-4 md:px-8 pb-24 max-w-[1500px]">
+      <div className="pt-6 flex flex-wrap justify-between gap-3 code">
+        <span className="text-bone">ASP/ARCHIVE — Closed operations</span>
+        <span>{cases.length} file{cases.length === 1 ? '' : 's'} on record</span>
+      </div>
+
+      <div className="mt-8 grid lg:grid-cols-[minmax(0,1fr)_auto] gap-10 items-end">
+        <h1 className="headline text-[clamp(64px,10vw,164px)]">Case<br />archive</h1>
         {cases.length > 0 && (
-          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-6 pb-3">
-            {[[cases.length, 'cases'], [`${completed}/${cases.length}`, 'completed'], [fmtDur(totalTime), 'on the clock'], [totalAttempts ? `${Math.round((totalReturned / totalAttempts) * 100)}%` : '—', 'returned when caught']].map(([n, l]) => (
-              <div key={l as string}><dd className="font-mono text-2xl font-bold">{n}</dd><dt className="meta mt-1">{l}</dt></div>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 border-t hair min-w-0 lg:min-w-[620px]">
+            {[[String(cases.length), 'Operations'], [`${completed}/${cases.length}`, 'Completed'], [fmtDur(totalTime), 'On the clock'], [totalAttempts ? `${Math.round((totalReturned / totalAttempts) * 100)}%` : '—', 'Returned when caught']].map(([n, l], i) => (
+              <div key={l} className={`pt-4 pb-2 ${i ? 'sm:pl-5 sm:border-l hair' : ''}`}>
+                <dd className="title text-[34px] tabular-nums">{n}</dd><dt className="code-sm mt-1">{l}</dt>
+              </div>
             ))}
           </dl>
         )}
       </div>
-      {prime && <p className="mt-6 text-mute">Repeat offender across all cases: <span className="text-red font-semibold">{prettySite(prime[0])}</span>, {prime[1]} attempts.</p>}
+      {prime && <p className="mt-6 code normal-case tracking-normal">Repeat offender across all operations: <span className="text-signal">{prettySite(prime[0])} — {prime[1]} deviations</span></p>}
 
       {cases.length === 0 ? (
-        <div className="mt-20 grid md:grid-cols-[minmax(0,420px)_1fr] gap-10 items-center">
-          <div className="relative aspect-[4/3] overflow-hidden grain"><img src={img('evidence.webp')} alt="" className="w-full h-full object-cover opacity-70" /></div>
+        <div className="mt-14 grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center border-t hair pt-10">
+          <Frame src="corridor.webp" className="h-[320px]" imgClass="object-[62%_45%] grayscale" caption={<><span>Archive room</span><span>Empty</span></>} />
           <div>
-            <p className="display text-[48px]">No files yet.</p>
-            <p className="text-mute mt-3 max-w-[40ch]">Every investigation you close lands here, with its verdict and the full evidence log.</p>
-            <button className="btn-primary mt-8" onClick={() => go('/new')}>Open the first case</button>
+            <h2 className="headline text-[64px]">No files yet.</h2>
+            <p className="text-steel mt-3 max-w-[42ch]">Every operation you close is filed here with its verdict and the full evidence log.</p>
+            <button className="btn btn-primary mt-8 min-w-[260px]" onClick={() => go('/new')}>Open the first operation <span className="arrow">→</span></button>
           </div>
         </div>
       ) : (
-        <ol className="mt-16 border-t border-smoke">
+        <ol className="mt-12">
+          <li className="hidden md:grid grid-cols-[150px_minmax(0,1fr)_minmax(0,260px)_150px_40px] gap-6 pb-2 border-b border-bone/70 code-sm">
+            <span>File</span><span>Operation</span><span>Verdict</span><span>Evidence</span><span />
+          </li>
           {all.map(({ c, s, v }) => (
-            <li key={c.id} className="group relative border-b border-smoke">
-              <button onClick={() => go(`/report/${c.id}`)} className="w-full text-left grid grid-cols-1 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,300px)_140px] gap-x-8 gap-y-2 py-7 pr-12 transition-colors hover:bg-char/60">
-                <div className="font-mono text-[12px] text-mute leading-relaxed">{fmtDate(c.startedAt)}<br /><span className="text-dim">{c.caseNumber}</span></div>
-                <div>
-                  <div className="meta">{activityOf(c.activity).label} · {fmtDur(s.elapsed)} of {fmtDur(c.durationMs)}</div>
-                  <div className="display text-[clamp(28px,3vw,44px)] mt-1 group-hover:text-amber transition-colors break-words">{c.name}</div>
+            <li key={c.id} className="group relative border-b hair">
+              <button onClick={() => go(`/report/${c.id}`)}
+                className="w-full text-left grid grid-cols-1 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,260px)_150px_40px] gap-x-6 gap-y-1 py-6 pl-3 -ml-3 border-l-2 border-transparent hover:border-signal hover:bg-graphite/60 transition-colors">
+                <div className="font-mono text-[11px] leading-relaxed">
+                  <div className="text-bone">{c.caseNumber}</div>
+                  <div className="text-steel">{fmtDate(c.startedAt)}</div>
                 </div>
-                <div className={`display text-[24px] md:pt-5 ${v.tone === 'amber' ? 'text-amber' : 'text-red'}`}>{v.title}</div>
-                <div className="font-mono text-[12px] text-mute md:pt-6">{s.attempts} attempts<br />{s.returned} returned · {s.proceeded} left</div>
+                <div className="min-w-0">
+                  <div className="title text-[clamp(24px,2.4vw,34px)] truncate">{c.name}</div>
+                  <div className="code-sm mt-1">{activityOf(c.activity).label} · {fmtDur(s.elapsed)} of {fmtDur(c.durationMs)}</div>
+                </div>
+                <div>
+                  <div className={`title text-[22px] ${v.tone === 'red' ? 'text-signal' : ''}`}>{v.title}</div>
+                  <div className={`code-sm mt-1 ${c.status === 'completed' ? '' : '!text-signal'}`}>{c.status === 'completed' ? 'Completed' : `Aborted · ${s.completionPct}%`}</div>
+                </div>
+                <div className="font-mono text-[11px] text-steel leading-relaxed">
+                  <span className={s.attempts ? 'text-signal' : 'text-light'}>{s.attempts}</span> deviations<br />{s.returned} returned · {s.proceeded} proceeded
+                </div>
+                <span className="hidden md:block code text-right pt-2 group-hover:text-bone">→</span>
               </button>
-              <div className="absolute right-0 top-7">
+              <div className="absolute right-12 top-6 md:right-14">
                 {confirmId === c.id ? (
-                  <span className="flex flex-col items-end gap-1 text-xs bg-ink pl-3">
-                    <button className="text-red hover:underline" onClick={() => del(c.id)}>Delete case</button>
-                    <button className="text-mute hover:underline" onClick={() => setConfirmId(null)}>Cancel</button>
+                  <span className="flex gap-4 bg-obsidian pl-3 py-1">
+                    <button className="link danger !text-signal" onClick={() => del(c.id)}>Delete file</button>
+                    <button className="link" onClick={() => setConfirmId(null)}>Cancel</button>
                   </span>
                 ) : (
-                  <button aria-label={`Delete case ${c.caseNumber}`} className="p-2 text-dim hover:text-red" onClick={() => setConfirmId(c.id)}><Trash2 size={16} /></button>
+                  <button aria-label={`Delete case ${c.caseNumber}`} className="link danger opacity-0 group-hover:opacity-100 focus:opacity-100" onClick={() => setConfirmId(c.id)}>Delete</button>
                 )}
               </div>
             </li>
@@ -84,30 +103,32 @@ export default function History({ store }: { store: Store }) {
         </ol>
       )}
 
-      <section className="mt-24 pt-10 border-t border-smoke grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10">
+      <section className="mt-24 grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-16 gap-y-8 border-t hair pt-8">
         <div>
-          <div className="meta">Evidence storage</div>
-          <h2 className="display text-[44px] mt-3">Kept in this browser. Only.</h2>
-          <p className="text-mute mt-3 max-w-[52ch] leading-relaxed">
-            Cases, events, preferences and your site lists live in the extension's local storage on this device. Nothing is uploaded or synced.
-            We store which listed sites you tried, the reasons you picked, and timestamps — never page contents, keystrokes or unrelated history.
-          </p>
+          <div className="code">Evidence storage</div>
+          <h2 className="headline text-[52px] mt-3">Kept on this<br />device. Only.</h2>
         </div>
-        <div className="md:pt-8">
-          <div className="font-mono text-sm flex justify-between py-2.5 border-b border-smoke"><span className="text-mute">Cases stored</span><span>{cases.length}</span></div>
-          <div className="font-mono text-sm flex justify-between py-2.5 border-b border-smoke"><span className="text-mute">Space used</span><span>{bytes == null ? '—' : `${(bytes / 1024).toFixed(1)} KB`}</span></div>
-          <div className="font-mono text-sm flex justify-between py-2.5 border-b border-smoke"><span className="text-mute">Active case</span><span>{store.active ? store.active.caseNumber : 'none'}</span></div>
+        <div>
+          <p className="text-steel leading-relaxed max-w-[60ch] text-[14px]">
+            Operations, events, preferences and site lists live in the extension's local storage in this browser. Nothing is uploaded or synced.
+            The bureau stores which listed sites you tried, the reasons you chose and timestamps — never page contents, keystrokes or unrelated history.
+          </p>
+          <div className="mt-6 max-w-[520px]">
+            <Row k="Files stored" v={String(cases.length)} />
+            <Row k="Space used" v={bytes == null ? '—' : `${(bytes / 1024).toFixed(1)} KB`} />
+            <Row k="Live operation" v={store.active ? store.active.caseNumber : 'None'} />
+          </div>
           <div className="mt-6">
             {confirmAll ? (
-              <div>
-                <p className="text-sm">This permanently erases every case{store.active ? ', ends the active investigation' : ''} and your saved site lists. It cannot be undone.</p>
-                <div className="flex gap-6 mt-4">
-                  <button className="btn-line danger" onClick={clearAll}>Erase everything</button>
-                  <button className="btn-line" onClick={() => setConfirmAll(false)}>Cancel</button>
+              <div className="border-l-2 border-signal pl-4">
+                <p className="text-[14px] text-bone">This permanently erases every file{store.active ? ', ends the live operation' : ''} and your saved site lists. It cannot be undone.</p>
+                <div className="flex gap-3 mt-4">
+                  <button className="btn btn-critical" onClick={clearAll}>Erase everything</button>
+                  <button className="btn btn-ghost" onClick={() => setConfirmAll(false)}>Cancel</button>
                 </div>
               </div>
             ) : (
-              <button className="btn-line danger" onClick={() => setConfirmAll(true)}><Trash2 size={14} /> Delete all local data</button>
+              <button className="btn btn-ghost hover:!border-signal hover:!text-signal" onClick={() => setConfirmAll(true)}>Delete all local data</button>
             )}
           </div>
         </div>

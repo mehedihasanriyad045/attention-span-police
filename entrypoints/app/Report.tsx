@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Download, Copy, Check, ArrowRight } from 'lucide-react';
-import { img } from '@/lib/hooks';
+import { motion } from 'motion/react';
 import { Store, statsOf, verdictOf, activityOf, fmtDur, fmtDate, fmtTime, REASONS, reasonOf, aiReport, prettySite } from '@/lib/model';
 import { renderPoster } from '@/lib/poster';
+import { Frame, Row } from '@/components/kit';
 import { go } from './App';
 
 export default function Report({ store, id }: { store: Store; id?: string }) {
@@ -10,14 +10,15 @@ export default function Report({ store, id }: { store: Store; id?: string }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   if (!c) return (
-    <div className="px-5 md:px-10 pt-32">
-      <h1 className="display text-[72px]">Case not found.</h1>
-      <p className="text-mute mt-3">It may have been deleted. <a href="#/history" className="btn-line">Back to history</a></p>
+    <div className="pt-28 px-4 md:px-8">
+      <div className="code">File not found</div>
+      <h1 className="headline text-[80px] mt-3">Case expunged.</h1>
+      <a href="#/history" className="btn btn-ghost mt-8">Back to archive</a>
     </div>
   );
   const s = statsOf(c), v = verdictOf(c);
-  const accent = v.tone === 'amber' ? 'text-amber' : 'text-red';
-  const decisions = c.events.filter((e) => ['attempt', 'returned', 'proceeded', 'paused', 'resumed', 'started', 'completed', 'abandoned'].includes(e.kind));
+  const red = v.tone === 'red';
+  const log = c.events.filter((e) => ['attempt', 'returned', 'proceeded', 'paused', 'resumed', 'started', 'completed', 'abandoned'].includes(e.kind));
   const maxReason = Math.max(1, ...Object.values(s.reasons));
 
   const download = async () => {
@@ -35,97 +36,117 @@ export default function Report({ store, id }: { store: Store; id?: string }) {
     await navigator.clipboard.writeText(aiReport(c));
     setCopied(true); setTimeout(() => setCopied(false), 2200);
   };
+  const reveal = (d: number) => ({ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.55, delay: d, ease: [0.2, 0.7, 0.2, 1] as const } });
 
   return (
-    <article>
-      {/* Poster */}
-      <header className="relative min-h-[88svh] overflow-hidden grain flex flex-col">
-        <img src={img('room-wide.webp')} alt="" className="absolute inset-0 w-full h-full object-cover object-[50%_70%]" style={{ filter: v.tone === 'red' ? 'saturate(1.2) brightness(.6)' : 'brightness(.7)' }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/70" />
-        <div className="relative px-5 md:px-10 pt-24 flex flex-wrap justify-between gap-3 meta">
-          <span>Case {c.caseNumber} · {fmtDate(c.startedAt)}</span>
-          <span className={accent}>{c.status === 'completed' ? 'Closed · mission completed' : `Closed · ended early at ${s.completionPct}%`}</span>
+    <article className="pt-12 px-4 md:px-8 pb-20 max-w-[1500px]">
+      <div className="pt-6 flex flex-wrap justify-between gap-3 code">
+        <span className="flex gap-6"><span className="text-bone">Debrief · {c.caseNumber}</span><span>{fmtDate(c.startedAt)}</span></span>
+        <span className={c.status === 'completed' ? 'text-bone' : 'text-signal'}>{c.status === 'completed' ? 'Operation completed' : `Operation aborted at ${s.completionPct}%`}</span>
+      </div>
+
+      {/* Verdict */}
+      <header className="mt-10 grid lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)] gap-10 items-end">
+        <div className="grid grid-cols-[8px_1fr] gap-6">
+          <motion.span className={red ? 'bg-signal' : 'bg-bone'} initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} style={{ originY: 0 }} transition={{ duration: 0.6, ease: [0.7, 0, 0.2, 1] }} />
+          <div>
+            <motion.div {...reveal(0.1)} className="code">Final verdict</motion.div>
+            <motion.h1 {...reveal(0.18)} className={`headline text-[clamp(72px,11vw,184px)] mt-3 ${red ? 'text-signal' : ''}`}>{v.title}</motion.h1>
+            <motion.p {...reveal(0.3)} className="mt-6 text-[clamp(18px,1.8vw,24px)] text-bone max-w-[40ch] leading-snug">{v.line}</motion.p>
+          </div>
         </div>
-        <div className="relative mt-auto px-5 md:px-10 pb-14 max-w-[1400px]">
-          <div className="meta text-paper">Final verdict</div>
-          <h1 className={`display text-[clamp(72px,14vw,220px)] mt-3 ${accent}`}>{v.title}</h1>
-          <p className="mt-6 text-[clamp(20px,2.2vw,28px)] italic max-w-[36ch] text-paper/90 leading-snug">“{v.line}”</p>
-        </div>
+        <motion.div {...reveal(0.4)}>
+          <Frame src="interrogation.webp" className="h-[260px]" imgClass="object-[30%_60%] grayscale-[.3]"
+            caption={<><span>Subject photographed</span><span>{fmtTime(c.startedAt)}</span></>} />
+        </motion.div>
       </header>
 
-      {/* Case file */}
-      <section className="px-5 md:px-10 py-16 max-w-[1400px] grid lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-16">
+      {/* Numbers */}
+      <motion.dl {...reveal(0.5)} className="mt-16 grid grid-cols-2 md:grid-cols-4 border-y hair">
+        {[
+          [String(s.attempts).padStart(2, '0'), 'Deviations', s.attempts > 0],
+          [String(s.returned).padStart(2, '0'), 'Returned to mission', false],
+          [String(s.proceeded).padStart(2, '0'), 'Proceeded anyway', s.proceeded > 0],
+          [`${s.completionPct}%`, `Of ${fmtDur(c.durationMs)} committed`, false],
+        ].map(([n, l, hot], i) => (
+          <div key={l as string} className={`py-6 ${i % 2 ? 'pl-6 border-l hair' : ''} ${i >= 2 ? 'md:pl-6 md:border-l hair' : ''}`}>
+            <dd className={`headline text-[clamp(64px,7vw,108px)] tabular-nums ${hot ? 'text-signal' : ''}`}>{n}</dd>
+            <dt className="code mt-2">{l}</dt>
+          </div>
+        ))}
+      </motion.dl>
+
+      {/* Dossier */}
+      <section className="mt-14 grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-16 gap-y-12">
         <div>
-          <div className="meta">The mission · {activityOf(c.activity).label}</div>
-          <h2 className="display text-[clamp(40px,5vw,76px)] mt-3 break-words">{c.name}</h2>
-          {c.description && <p className="mt-4 text-paper/70 max-w-[56ch]">{c.description}</p>}
-
-          <dl className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-y-10">
-            {[[s.attempts, 'Attempts', 'text-red'], [s.returned, 'Returned', 'text-amber'], [s.proceeded, 'Went anyway', ''], [`${s.completionPct}%`, 'Of committed time', '']].map(([n, l, cls]) => (
-              <div key={l as string}><dd className={`display text-[clamp(56px,6vw,96px)] ${cls}`}>{n}</dd><dt className="meta mt-2">{l}</dt></div>
-            ))}
-          </dl>
-
-          <div className="mt-14 grid sm:grid-cols-2 gap-x-12 font-mono text-[13px]">
-            {[
-              ['Committed', fmtDur(c.durationMs)], ['Actual elapsed', fmtDur(s.elapsed)],
-              ['Opened', `${fmtDate(c.startedAt)} ${fmtTime(c.startedAt)}`], ['Closed', c.endedAt ? fmtTime(c.endedAt) : '—'],
-              ['Interrogations', String(s.attempts)], ['Pauses', String(s.pauses)],
-              ['Cleared-site visits', String(s.allowedVisits)], ['Left without deciding', String(s.undecided)],
-            ].map(([k, val]) => (
-              <div key={k} className="flex justify-between py-2.5 border-b border-smoke"><span className="text-mute">{k}</span><span>{val}</span></div>
-            ))}
+          <div className="code text-bone">Operation file</div>
+          <div className="title text-[34px] mt-3 break-words">{c.name}</div>
+          {c.description && <p className="text-steel mt-2 text-[14px]">{c.description}</p>}
+          <div className="mt-5">
+            <Row k="Cover activity" v={activityOf(c.activity).label} />
+            <Row k="Committed" v={fmtDur(c.durationMs)} />
+            <Row k="Actual elapsed" v={fmtDur(s.elapsed)} />
+            <Row k="Opened" v={`${fmtDate(c.startedAt)} ${fmtTime(c.startedAt)}`} />
+            <Row k="Closed" v={c.endedAt ? fmtTime(c.endedAt) : '—'} />
+            <Row k="Status" v={c.status === 'completed' ? 'Completed' : 'Ended early'} accent={c.status !== 'completed'} />
+            <Row k="Interrogations" v={String(s.attempts)} />
+            <Row k="Pauses" v={String(s.pauses)} />
+            <Row k="Cleared-asset visits" v={String(s.allowedVisits)} />
+            <Row k="Left without deciding" v={String(s.undecided)} />
+            <Row k="Restricted" v={c.restricted.map(prettySite).join(', ')} accent />
           </div>
         </div>
 
-        <aside className="lg:pt-8">
-          <div className="relative aspect-[16/10] overflow-hidden grain">
-            <img src={img('suspect.webp')} alt="" className="w-full h-full object-cover" />
-          </div>
-          <div className="meta mt-8">Officer's statement</div>
-          <blockquote className="mt-3 text-xl leading-relaxed text-paper/90">{v.statement}</blockquote>
-          <div className="meta mt-3">— Duty Officer, Attention Span Police</div>
+        <div>
+          <div className="code text-bone">Officer's statement</div>
+          <blockquote className="mt-4 text-[clamp(20px,2vw,26px)] leading-snug text-bone max-w-[44ch]">“{v.statement}”</blockquote>
+          <div className="code mt-4">— Duty officer, Bureau of Attention</div>
 
-          <div className="meta mt-12">Alibis given</div>
+          <div className="code text-bone mt-12">Alibis on record</div>
           <ul className="mt-3">
-            {REASONS.map((r) => (
-              <li key={r.id} className="py-2">
-                <div className="flex justify-between text-sm"><span className={s.reasons[r.id] ? '' : 'text-dim'}>{r.label}</span><span className="font-mono">{s.reasons[r.id]}</span></div>
-                <div className="h-px bg-smoke mt-2"><div className="h-px bg-amber" style={{ width: `${(s.reasons[r.id] / maxReason) * 100}%` }} /></div>
+            {REASONS.map((r, i) => (
+              <li key={r.id} className="grid grid-cols-[36px_1fr_40px] items-center gap-2 py-2.5 border-b hair">
+                <span className="code-sm">{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <div className={`text-[14px] ${s.reasons[r.id] ? 'text-bone' : 'text-steel'}`}>{r.label}</div>
+                  <div className="h-[2px] bg-iron mt-2"><div className={`h-full ${r.id === 'unknown' || r.id === 'break' ? 'bg-signal' : 'bg-bone'}`} style={{ width: `${(s.reasons[r.id] / maxReason) * 100}%` }} /></div>
+                </div>
+                <span className="font-mono text-[13px] text-right">{s.reasons[r.id]}</span>
               </li>
             ))}
           </ul>
           {Object.keys(s.domains).length > 0 && (
-            <p className="mt-6 text-sm text-mute">Sites involved: <span className="text-paper">{Object.entries(s.domains).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${prettySite(d)} ×${n}`).join(', ')}</span></p>
+            <p className="mt-5 code normal-case tracking-normal">Destinations involved: <span className="text-signal">{Object.entries(s.domains).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${prettySite(d)} ×${n}`).join(' · ')}</span></p>
           )}
-        </aside>
-      </section>
-
-      {/* Actions */}
-      <section className="px-5 md:px-10 py-12 border-y border-smoke">
-        <div className="max-w-[1400px] flex flex-wrap items-center gap-x-8 gap-y-5">
-          <button className="btn-primary" onClick={download} disabled={busy}><Download size={18} /> {busy ? 'Printing…' : 'Download case poster'}</button>
-          <button className="btn-line" onClick={copy}>{copied ? <><Check size={15} /> Copied — paste it into your AI assistant</> : <><Copy size={15} /> Copy report for AI analysis</>}</button>
-          <span className="flex-1" />
-          <button className="btn-line" onClick={() => go(store.active ? '/active' : '/new')}>{store.active ? 'Back to active case' : 'Open a new case'} <ArrowRight size={15} /></button>
         </div>
       </section>
 
+      {/* Export */}
+      <section className="mt-16 border-y hair py-6 flex flex-wrap items-center gap-3">
+        <button className="btn btn-primary min-w-[260px]" onClick={download} disabled={busy}>{busy ? 'Printing dossier…' : 'Download case poster'} <span className="arrow">↓</span></button>
+        <button className="btn btn-ghost min-w-[260px]" onClick={copy}>{copied ? 'Copied — paste into your AI' : 'Copy report for AI analysis'} <span className="arrow">⧉</span></button>
+        <span className="flex-1" />
+        <button className="link" onClick={() => go(store.active ? '/active' : '/new')}>{store.active ? 'Back to live operation →' : 'Open a new operation →'}</button>
+      </section>
+
       {/* Timeline */}
-      <section className="px-5 md:px-10 py-16 max-w-[1400px]">
-        <div className="meta">Evidence log · observed browser activity</div>
-        <ol className="mt-6 font-mono text-[13px]">
-          {decisions.map((e, i) => (
-            <li key={i} className="grid grid-cols-[64px_80px_1fr] sm:grid-cols-[80px_140px_1fr] gap-4 py-2.5 border-b border-smoke/70">
-              <span className="text-dim">{fmtTime(e.t)}</span>
-              <span className={e.kind === 'proceeded' || e.kind === 'attempt' ? 'text-red' : e.kind === 'returned' || e.kind === 'completed' ? 'text-amber' : 'text-mute'}>{e.kind.replace('_', ' ')}</span>
-              <span className="text-paper/80">
-                {e.domain ?? ''}{e.reason ? ` — “${reasonOf(e.reason)?.label}”` : ''}{e.note ? ` — ${e.note}` : ''}
-              </span>
-            </li>
-          ))}
+      <section className="mt-14">
+        <div className="code text-bone">Evidence log · observed browser activity</div>
+        <ol className="mt-4">
+          {log.map((e, i) => {
+            const hot = e.kind === 'attempt' || e.kind === 'proceeded';
+            return (
+              <li key={i} className="grid grid-cols-[70px_110px_1fr] sm:grid-cols-[90px_150px_1fr] gap-4 py-2.5 border-b hair font-mono text-[12px]">
+                <span className="text-steel">{fmtTime(e.t)}</span>
+                <span className={`uppercase tracking-[.06em] ${hot ? 'text-signal' : e.kind === 'returned' || e.kind === 'completed' ? 'text-bone' : 'text-steel'}`}>{e.kind === 'attempt' ? 'deviation' : e.kind.replace('_', ' ')}</span>
+                <span className="text-light">{e.domain ?? ''}{e.reason ? ` — “${reasonOf(e.reason)?.label}”` : ''}{e.note ? ` — ${e.note}` : ''}</span>
+              </li>
+            );
+          })}
         </ol>
-        <p className="mt-8 text-xs text-dim max-w-[70ch]">The verdict is a deterministic joke built from counts above. It is not a scientific attention measurement — the extension only sees navigation to the sites you listed, not whether you were thinking about your work.</p>
+        <p className="mt-8 code-sm normal-case tracking-normal max-w-[70ch] leading-relaxed">
+          The verdict is a deterministic joke built from the counts above. It is not a measure of attention — the extension only sees navigation to the sites you listed.
+        </p>
       </section>
     </article>
   );

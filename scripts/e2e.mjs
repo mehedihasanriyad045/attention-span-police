@@ -72,14 +72,14 @@ ok(!t3.url().includes('interrogation.html'), 'youtube.com/watch not intercepted 
 await t3.close();
 
 await app.bringToFront();
-await app.click('text=Pause');
+await app.getByRole('button', { name: /^Pause/ }).click();
 await app.waitForTimeout(600);
 const t4 = await ctx.newPage();
 await nav(t4, 'https://www.reddit.com/');
 await t4.waitForTimeout(1000);
 ok(!t4.url().includes('interrogation.html'), 'paused: reddit not intercepted');
 await app.bringToFront();
-await app.click('text=Resume the interview');
+await app.click('text=Resume operation');
 await app.waitForTimeout(600);
 await nav(t4, 'https://www.reddit.com/r/x');
 ok(await intercepted(t4), 'resumed: reddit intercepted again');
@@ -98,7 +98,7 @@ await pop.waitForTimeout(500);
 await shot(pop, '07-popup-onduty');
 
 await app.bringToFront();
-await app.click('text=End investigation');
+await app.getByRole('button', { name: 'End investigation' }).click();
 await app.click('text=Yes, close the case');
 await app.waitForURL(/#\/report\//, { timeout: 5000 }).catch(() => {});
 await app.waitForTimeout(800);

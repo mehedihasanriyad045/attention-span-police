@@ -1,8 +1,9 @@
-// Renders a shareable 1080×1350 case poster on a canvas. No dependencies, no network.
+// Renders a shareable 1080×1350 mission-debrief poster on a canvas. No dependencies, no network.
 import { browser } from 'wxt/browser';
 import { Investigation, statsOf, verdictOf, activityOf, fmtDur, fmtDate, REASONS, prettySite } from './model';
 
-const C = { ink: '#0a0606', red: '#c0261a', amber: '#f2b53c', paper: '#efe6d8', mute: '#8f8682', smoke: '#2a2120' };
+const C = { obsidian: '#0b0d10', graphite: '#171b20', steel: '#777e87', light: '#d8dadd', bone: '#e8e5de', signal: '#c52b32', hair: 'rgba(119,126,135,.3)' };
+const D = '"Barlow Condensed"', M = '"IBM Plex Mono"', S = '"Inter Variable"';
 
 function loadImg(src: string) {
   return new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -17,98 +18,97 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number) {
   if (cur) lines.push(cur);
   return lines;
 }
-function fitFont(ctx: CanvasRenderingContext2D, lines: string[], family: string, maxW: number, start: number) {
-  let size = start;
-  for (; size > 40; size -= 4) {
-    ctx.font = `${size}px ${family}`;
-    if (lines.every((l) => ctx.measureText(l).width <= maxW)) break;
+function marks(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.strokeStyle = C.bone; ctx.lineWidth = 2; const k = 18;
+  for (const [px, py, dx, dy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(px - dx * 9, py - dy * 9 + dy * k); ctx.lineTo(px - dx * 9, py - dy * 9); ctx.lineTo(px - dx * 9 + dx * k, py - dy * 9); ctx.stroke();
   }
-  return size;
 }
 
 export async function renderPoster(c: Investigation): Promise<Blob> {
   await Promise.all([
-    document.fonts.load('100px Anton'), document.fonts.load('700 20px "JetBrains Mono"'), document.fonts.load('20px "JetBrains Mono"'),
-    document.fonts.load('400 30px "Archivo Variable"'), document.fonts.load('italic 400 30px "Archivo Variable"'),
+    document.fonts.load(`700 120px ${D}`), document.fonts.load(`600 40px ${D}`),
+    document.fonts.load(`400 20px ${M}`), document.fonts.load(`500 20px ${M}`), document.fonts.load(`400 28px ${S}`),
   ]);
   const W = 1080, H = 1350, P = 72;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d')!;
   const s = statsOf(c), v = verdictOf(c);
-  const accent = v.tone === 'amber' ? C.amber : C.red;
+  const accent = v.tone === 'red' ? C.signal : C.bone;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = C.obsidian; ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
-  // Image band
-  const room = await loadImg(browser.runtime.getURL('/img/room-wide.webp' as any));
-  const bandH = 560, scale = Math.max(W / room.width, bandH / room.height);
-  const iw = room.width * scale, ih = room.height * scale;
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, bandH); ctx.clip();
-  ctx.globalAlpha = 0.85;
-  ctx.drawImage(room, (W - iw) / 2, (bandH - ih) / 2 + 40, iw, ih);
-  ctx.globalAlpha = 1; ctx.restore();
-  let g = ctx.createLinearGradient(0, 0, 0, bandH);
-  g.addColorStop(0, 'rgba(10,6,6,.75)'); g.addColorStop(0.45, 'rgba(10,6,6,.15)'); g.addColorStop(1, C.ink);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, bandH);
+  // Alert strip
+  ctx.fillStyle = C.signal; ctx.fillRect(0, 0, W, 44);
+  ctx.fillStyle = C.bone; ctx.font = `500 16px ${M}`;
+  ctx.fillText('ATTENTION SPAN POLICE  ·  MISSION DEBRIEF', P, 14);
+  ctx.textAlign = 'right'; ctx.fillText(`FILE ${c.caseNumber}`, W - P, 14); ctx.textAlign = 'left';
 
-  // Header
-  ctx.fillStyle = C.paper; ctx.font = '44px Anton'; ctx.textBaseline = 'top';
-  ctx.fillText('ATTENTION SPAN POLICE', P, P - 8);
-  ctx.font = '20px "JetBrains Mono"'; ctx.fillStyle = C.mute;
-  ctx.fillText(`CASE ${c.caseNumber}`, P, P + 48);
-  ctx.textAlign = 'right';
-  ctx.fillText(fmtDate(c.startedAt).toUpperCase(), W - P, P + 48);
-  ctx.fillStyle = accent; ctx.font = '700 20px "JetBrains Mono"';
-  ctx.fillText(c.status === 'completed' ? 'CASE CLOSED · COMPLETED' : 'CASE CLOSED · ENDED EARLY', W - P, P);
-  ctx.textAlign = 'left';
+  // Framed image
+  const art = await loadImg(browser.runtime.getURL('/img/interrogation.webp' as any));
+  const ix = P, iy = 100, iw = W - P * 2, ih = 380;
+  const sc = Math.max(iw / art.width, ih / art.height);
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+  ctx.drawImage(art, ix + (iw - art.width * sc) / 2, iy + (ih - art.height * sc) / 2 + 40, art.width * sc, art.height * sc);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = iy; y < iy + ih; y += 3) ctx.fillRect(ix, y, iw, 1);
+  ctx.restore();
+  marks(ctx, ix, iy, iw, ih);
+  ctx.font = `400 15px ${M}`; ctx.fillStyle = C.steel;
+  ctx.fillText('EXHIBIT A — INTERROGATION ROOM 2', ix, iy + ih + 16);
+  ctx.textAlign = 'right'; ctx.fillText(fmtDate(c.startedAt).toUpperCase(), ix + iw, iy + ih + 16); ctx.textAlign = 'left';
 
   // Verdict
-  ctx.font = '700 20px "JetBrains Mono"'; ctx.fillStyle = C.paper;
-  ctx.fillText('FINAL VERDICT', P, 470);
-  const words = v.title.toUpperCase().split(' ');
-  const vLines = words.length > 2 ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')] : words.length === 2 ? words : [v.title.toUpperCase()];
-  const vs = fitFont(ctx, vLines, 'Anton', W - P * 2, 190);
-  ctx.font = `${vs}px Anton`; ctx.fillStyle = accent;
-  let y = 505;
-  for (const l of vLines) { ctx.fillText(l, P - 4, y); y += vs * 0.92; }
+  let y = 560;
+  ctx.fillStyle = accent; ctx.fillRect(P, y, 10, 250);
+  ctx.font = `500 17px ${M}`; ctx.fillStyle = C.steel; ctx.fillText('FINAL VERDICT', P + 34, y);
+  const title = v.title.toUpperCase();
+  let size = 170;
+  for (; size > 60; size -= 6) { ctx.font = `700 ${size}px ${D}`; if (wrap(ctx, title, W - P * 2 - 34).length <= 2) break; }
+  const vl = wrap(ctx, title, W - P * 2 - 34);
+  ctx.fillStyle = accent; y += 34;
+  for (const l of vl) { ctx.fillText(l, P + 30, y); y += size * 0.86; }
+  y += 34;
+  ctx.font = `400 25px ${S}`; ctx.fillStyle = C.bone;
+  for (const l of wrap(ctx, v.line, W - P * 2 - 34).slice(0, 3)) { ctx.fillText(l, P + 34, y); y += 34; }
 
-  // Verdict line
-  y += 18;
-  ctx.font = 'italic 400 30px "Archivo Variable"'; ctx.fillStyle = C.paper;
-  for (const l of wrap(ctx, `“${v.line}”`, W - P * 2)) { ctx.fillText(l, P, y); y += 40; }
+  // Mission line
+  y = Math.max(y + 26, 900);
+  ctx.fillStyle = C.hair; ctx.fillRect(P, y, W - P * 2, 1); y += 18;
+  ctx.font = `400 15px ${M}`; ctx.fillStyle = C.steel;
+  ctx.fillText(`OPERATION · ${activityOf(c.activity).label.toUpperCase()} · ${c.status === 'completed' ? 'COMPLETED' : 'ABORTED'}`, P, y); y += 28;
+  ctx.font = `600 44px ${D}`; ctx.fillStyle = C.bone;
+  ctx.fillText(wrap(ctx, c.name.toUpperCase(), W - P * 2)[0], P, y);
 
-  // Mission
-  y += 30;
-  ctx.fillStyle = C.smoke; ctx.fillRect(P, y, W - P * 2, 1); y += 26;
-  ctx.font = '18px "JetBrains Mono"'; ctx.fillStyle = C.mute;
-  ctx.fillText(`MISSION · ${activityOf(c.activity).label.toUpperCase()}`, P, y); y += 32;
-  ctx.font = '44px Anton'; ctx.fillStyle = C.paper;
-  for (const l of wrap(ctx, c.name.toUpperCase(), W - P * 2).slice(0, 2)) { ctx.fillText(l, P, y); y += 48; }
-
-  // Stats row
-  y = Math.max(y + 24, 1010);
+  // Stats
+  y = 1060;
+  ctx.fillStyle = C.hair; ctx.fillRect(P, y, W - P * 2, 1);
   const cols = [
-    [String(s.attempts), 'ATTEMPTS', C.red], [String(s.returned), 'RETURNED', C.amber], [String(s.proceeded), 'WENT ANYWAY', C.paper],
-    [`${s.completionPct}%`, `OF ${fmtDur(c.durationMs).toUpperCase()}`, C.paper],
+    [String(s.attempts).padStart(2, '0'), 'DEVIATIONS', s.attempts ? C.signal : C.bone],
+    [String(s.returned).padStart(2, '0'), 'RETURNED', C.bone],
+    [String(s.proceeded).padStart(2, '0'), 'PROCEEDED', s.proceeded ? C.signal : C.bone],
+    [`${s.completionPct}%`, `OF ${fmtDur(c.durationMs).toUpperCase()}`, C.bone],
   ] as const;
-  const cw = (W - P * 2) / cols.length;
+  const cw = (W - P * 2) / 4;
   cols.forEach(([n, l, col], i) => {
-    ctx.font = '96px Anton'; ctx.fillStyle = col; ctx.fillText(n, P + i * cw, y);
-    ctx.font = '17px "JetBrains Mono"'; ctx.fillStyle = C.mute; ctx.fillText(l, P + i * cw, y + 108);
+    const x = P + i * cw;
+    if (i) { ctx.fillStyle = C.hair; ctx.fillRect(x, y, 1, 150); }
+    ctx.font = `700 100px ${D}`; ctx.fillStyle = col; ctx.fillText(n, x + (i ? 22 : 0), y + 22);
+    ctx.font = `400 14px ${M}`; ctx.fillStyle = C.steel; ctx.fillText(l, x + (i ? 22 : 0), y + 128);
   });
 
-  // Footer: top reason + site
-  y += 160;
-  ctx.fillStyle = C.smoke; ctx.fillRect(P, y, W - P * 2, 1); y += 22;
+  // Footer
+  y = 1240;
+  ctx.fillStyle = C.hair; ctx.fillRect(P, y, W - P * 2, 1); y += 18;
   const topReason = REASONS.filter((r) => s.reasons[r.id]).sort((a, b) => s.reasons[b.id] - s.reasons[a.id])[0];
   const topSite = Object.entries(s.domains).sort((a, b) => b[1] - a[1])[0]?.[0];
-  ctx.font = '18px "JetBrains Mono"'; ctx.fillStyle = C.mute;
+  ctx.font = `500 15px ${M}`; ctx.fillStyle = C.light;
   ctx.fillText(`PRIME SUSPECT: ${topSite ? prettySite(topSite).toUpperCase() : 'NONE'}`, P, y);
   ctx.textAlign = 'right';
-  ctx.fillText(topReason ? `ALIBI: “${topReason.label.toUpperCase()}”`.slice(0, 48) : 'ALIBI: NOT REQUIRED', W - P, y);
+  ctx.fillText((topReason ? `ALIBI: “${topReason.label.toUpperCase()}”` : 'ALIBI: NOT REQUIRED').slice(0, 52), W - P, y);
   ctx.textAlign = 'left';
-  ctx.font = '15px "JetBrains Mono"'; ctx.fillStyle = '#5d5553';
-  ctx.fillText('ENTERTAINMENT VERDICT BASED ON BROWSER ACTIVITY. NOT A MEASURE OF FOCUS.', P, H - P + 10);
+  ctx.font = `400 13px ${M}`; ctx.fillStyle = C.steel;
+  ctx.fillText('ENTERTAINMENT VERDICT BASED ON BROWSER ACTIVITY. NOT A MEASURE OF FOCUS.', P, H - 46);
 
   return new Promise((res) => cv.toBlob((b) => res(b!), 'image/png'));
 }

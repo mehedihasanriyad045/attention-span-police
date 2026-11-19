@@ -6,6 +6,7 @@ import Setup from './Setup';
 import Active from './Active';
 import Report from './Report';
 import History from './History';
+import { Status } from '@/components/kit';
 
 function useRoute() {
   const get = () => location.hash.replace(/^#/, '') || '/';
@@ -34,7 +35,7 @@ export default function App() {
   const [, seg, arg] = path.split('/');
 
   useEffect(() => {
-    document.title = ({ welcome: 'Attention Span Police', new: 'New investigation — ASP', active: 'On duty — ASP', report: 'Case report — ASP', history: 'Case history — ASP' } as Record<string, string>)[seg] ?? 'Attention Span Police';
+    document.title = ({ welcome: 'Attention Span Police', new: 'Mission briefing — ASP', active: 'Operation live — ASP', report: 'Debrief — ASP', history: 'Case archive — ASP' } as Record<string, string>)[seg] ?? 'Attention Span Police';
   }, [seg]);
   if (!s) return null;
 
@@ -46,21 +47,24 @@ export default function App() {
   else page = <Setup store={s} />;
 
   return (
-    <div className="min-h-screen bg-ink">
-      <nav className="fixed top-0 inset-x-0 z-40 flex items-center justify-between px-5 md:px-10 h-14 bg-gradient-to-b from-ink to-ink/0">
-        <a href="#/" className="flex items-baseline gap-3">
-          <span className="display text-[22px] text-paper">ASP</span>
-          <span className="meta hidden sm:inline">Attention Span Police</span>
+    <div className="min-h-screen bg-obsidian">
+      <nav className="fixed top-0 inset-x-0 z-40 h-12 flex items-center justify-between px-4 md:px-8 bg-obsidian border-b hair">
+        <a href="#/" className="flex items-center gap-3">
+          <span className="size-3 bg-signal" />
+          <span className="title text-[20px] tracking-[.1em]">ASP</span>
+          <span className="code-sm hidden md:inline">Attention Span Police · Bureau of Attention</span>
         </a>
-        <div className="flex items-center gap-5 md:gap-7 text-sm">
-          {s.active ? (
-            <a href="#/active" className={`flex items-center gap-2 ${seg === 'active' ? 'text-amber' : 'text-paper hover:text-amber'}`}>
-              <span className={`size-2 rounded-full bg-amber ${s.active.status === 'active' ? 'pulse' : 'opacity-50'}`} /> On duty
+        <div className="flex items-center gap-5 md:gap-8">
+          {[
+            s.active ? ['#/active', '02', 'Operation', seg === 'active'] : ['#/new', '01', 'Briefing', seg === 'new'],
+            ['#/history', '03', 'Archive', seg === 'history' || seg === 'report'],
+          ].map(([href, n, label, on]) => (
+            <a key={href as string} href={href as string} className={`code flex gap-2 transition-colors ${on ? 'text-bone' : 'hover:text-light'}`}>
+              <span className={on ? 'text-signal' : ''}>{n as string}</span>{label as string}
             </a>
-          ) : (
-            <a href="#/new" className={seg === 'new' ? 'text-amber' : 'text-mute hover:text-paper'}>New case</a>
-          )}
-          <a href="#/history" className={seg === 'history' ? 'text-amber' : 'text-mute hover:text-paper'}>History</a>
+          ))}
+          <span className="hidden sm:block w-px h-4 bg-steel/30" />
+          <span className="hidden sm:flex"><Status live={!!s.active} paused={s.active?.status === 'paused'} /></span>
         </div>
       </nav>
       <AnimatePresence mode="wait">

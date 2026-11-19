@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { browser } from 'wxt/browser';
-import { X, Plus, ArrowRight } from 'lucide-react';
-import { img, send } from '@/lib/hooks';
+import { send } from '@/lib/hooks';
 import { ACTIVITIES, Activity, Store, normalizeDomain, originPatterns, activityOf, prettySite, Investigation } from '@/lib/model';
+import { Frame, Section, Row } from '@/components/kit';
 import { go } from './App';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 const SUGGEST_RESTRICTED = ['facebook.com', 'instagram.com', 'reddit.com', 'tiktok.com', 'x.com', 'youtube.com/shorts', 'netflix.com', 'twitch.tv'];
 const SUGGEST_ALLOWED = ['youtube.com', 'netflix.com', 'github.com', 'stackoverflow.com', 'docs.google.com', 'developer.mozilla.org'];
 
-function DomainList({ title, note, items, setItems, suggestions, tone, other }: {
-  title: string; note: string; items: string[]; setItems: (v: string[]) => void; suggestions: string[]; tone: 'red' | 'paper'; other: string[];
+function DomainList({ title, code, note, items, setItems, suggestions, restricted, other }: {
+  title: string; code: string; note: string; items: string[]; setItems: (v: string[]) => void; suggestions: string[]; restricted?: boolean; other: string[];
 }) {
   const [v, setV] = useState('');
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
   const add = (raw: string) => {
     const d = normalizeDomain(raw);
-    if (!d) return setErr('That does not look like a website. Try “instagram.com”.');
-    if (items.includes(d)) return setErr('Already on the list.');
-    if (other.includes(d)) return setErr('That exact site is on the other list.');
+    if (!d) return setErr('Not a recognisable address. Try “instagram.com”.');
+    if (items.includes(d)) return setErr('Already listed.');
+    if (other.includes(d)) return setErr('That exact address is on the other list.');
     setItems([...items, d]); setV(''); setErr('');
   };
   const rename = (i: number, raw: string) => {
@@ -30,30 +30,34 @@ function DomainList({ title, note, items, setItems, suggestions, tone, other }: 
   };
   return (
     <div>
-      <h3 className={`display text-[34px] ${tone === 'red' ? 'text-red' : ''}`}>{title}</h3>
-      <p className="text-sm text-mute mt-1 max-w-[38ch]">{note}</p>
-      <ul className="mt-4">
+      <div className="flex items-baseline justify-between border-b border-bone/70 pb-2">
+        <h3 className={`title text-[26px] ${restricted ? 'text-signal' : ''}`}>{title}</h3>
+        <span className="code-sm">{code} · {String(items.length).padStart(2, '0')}</span>
+      </div>
+      <p className="text-[13px] text-steel mt-2 leading-snug max-w-[40ch]">{note}</p>
+      <ul className="mt-3">
         {items.map((d, i) => (
-          <li key={d} className="group flex items-center justify-between border-b border-smoke py-2.5">
+          <li key={d} className="group grid grid-cols-[20px_1fr_auto] items-center border-b hair h-10">
+            <span className={`size-1.5 ${restricted ? 'bg-signal' : 'bg-steel'}`} />
             {editing === i ? (
-              <input autoFocus defaultValue={d} className="field !py-0 font-mono text-[15px] !border-0" onBlur={(e) => rename(i, e.target.value)}
+              <input autoFocus defaultValue={d} className="field !py-1 !border-0 font-mono text-[13px]" onBlur={(e) => rename(i, e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditing(null); }} />
             ) : (
-              <button className="font-mono text-[15px] text-left hover:text-amber" title="Click to edit" onClick={() => setEditing(i)}>{d}</button>
+              <button className="font-mono text-[13px] text-left text-light hover:text-bone truncate" title="Click to edit" onClick={() => setEditing(i)}>{d}</button>
             )}
-            <button aria-label={`Remove ${d}`} className="text-dim hover:text-red p-1" onClick={() => setItems(items.filter((x) => x !== d))}><X size={16} /></button>
+            <button aria-label={`Remove ${d}`} className="link danger opacity-60 group-hover:opacity-100 px-1" onClick={() => setItems(items.filter((x) => x !== d))}>Remove</button>
           </li>
         ))}
-        {!items.length && <li className="py-2.5 text-sm text-dim italic border-b border-smoke">Nothing listed.</li>}
+        {!items.length && <li className="h-10 flex items-center code-sm border-b hair">None listed</li>}
       </ul>
-      <form className="flex items-center gap-3 mt-3" onSubmit={(e) => { e.preventDefault(); add(v); }}>
-        <input value={v} onChange={(e) => { setV(e.target.value); setErr(''); }} placeholder="add a site, e.g. reddit.com" className="field font-mono text-sm" />
-        <button type="submit" aria-label="Add site" className="text-mute hover:text-amber p-1"><Plus size={18} /></button>
+      <form className="grid grid-cols-[1fr_auto] items-end gap-3 mt-2" onSubmit={(e) => { e.preventDefault(); add(v); }}>
+        <input value={v} onChange={(e) => { setV(e.target.value); setErr(''); }} placeholder="add address — e.g. reddit.com" className="field font-mono text-[13px]" />
+        <button type="submit" className="link pb-2.5 text-bone">Add +</button>
       </form>
-      {err && <p className="text-xs text-red mt-2">{err}</p>}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+      {err && <p className="code-sm !text-signal mt-2 normal-case tracking-normal">{err}</p>}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3">
         {suggestions.filter((x) => !items.includes(x) && !other.includes(x)).map((x) => (
-          <button key={x} onClick={() => add(x)} className="text-xs text-dim hover:text-amber font-mono">+ {x}</button>
+          <button key={x} onClick={() => add(x)} className="font-mono text-[11px] text-steel hover:text-bone">+{x}</button>
         ))}
       </div>
     </div>
@@ -83,7 +87,7 @@ export default function Setup({ store }: { store: Store }) {
     browser.permissions.request({ origins }).then(async (granted) => {
       if (!granted) {
         setBusy(false);
-        setError('Permission declined. Without access to the listed sites, the department cannot intercept them, so the case was not opened. Remove sites you don’t want to grant, or try again.');
+        setError('Access declined. Without permission for the listed sites the bureau cannot intercept them, so the operation was not opened. Remove sites you don’t want to grant, or try again.');
         return;
       }
       await send<Investigation>({ type: 'start', config: { activity, name: name.trim(), description: description.trim(), durationMs: minutes * 60000, allowed, restricted } });
@@ -91,85 +95,95 @@ export default function Setup({ store }: { store: Store }) {
     }).catch((e) => { setBusy(false); setError(String(e?.message ?? e)); });
   };
 
+  const missing = [!name.trim() && 'objective', !validMin && 'duration', !restricted.length && 'restricted destination'].filter(Boolean);
+
   return (
-    <div className="md:grid md:grid-cols-[minmax(280px,34%)_1fr] min-h-screen">
-      <aside className="relative h-[46vh] md:h-screen md:sticky md:top-0 overflow-hidden grain">
-        <img src={img('room-spotlight.webp')} alt="" className="absolute inset-0 w-full h-full object-cover object-top" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-ink/50 md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-ink" />
-        <div className="absolute left-5 md:left-10 bottom-8 right-5">
-          <div className="meta text-amber">Form ASP-01 · Intake</div>
-          <p className="display text-[clamp(40px,4.4vw,72px)] mt-3">Take a<br />seat.</p>
-          <p className="text-sm text-paper/70 mt-3 max-w-[30ch]">State your mission. Name your weaknesses. The light stays on until the clock runs out.</p>
+    <div className="pt-12 px-4 md:px-8 pb-24 max-w-[1500px] grid lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] gap-x-14 gap-y-10">
+      {/* Briefing dossier column */}
+      <aside className="lg:sticky lg:top-12 lg:self-start pt-8">
+        <div className="flex justify-between code"><span className="text-bone">ASP/OPS — Form 01</span><span>Draft</span></div>
+        <Frame src="briefing.webp" className="mt-5 h-[36vh] lg:h-[46vh]" imgClass="object-[30%_60%]"
+          caption={<><span>Fig. 02 — Operative on file</span><span>Identity withheld</span></>} />
+        <div className="mt-10">
+          <div className="code mb-2 text-bone">Operation parameters</div>
+          <Row k="Activity" v={activityOf(activity).label} />
+          <Row k="Objective" v={name.trim() || '—'} />
+          <Row k="Duration" v={validMin ? `${minutes} min` : '—'} />
+          <Row k="Cleared destinations" v={String(allowed.length)} />
+          <Row k="Restricted destinations" v={String(restricted.length)} accent />
         </div>
       </aside>
 
-      <div className="px-5 md:px-14 lg:px-20 pt-10 md:pt-28 pb-28 max-w-[980px]">
-        <h1 className="display text-[clamp(52px,7vw,112px)]">New<br />investigation</h1>
+      <div className="pt-8 min-w-0">
+        <div className="code">Mission briefing · prepare a new operation</div>
+        <h1 className="headline text-[clamp(56px,7.5vw,124px)] mt-4">New<br />investigation</h1>
 
-        <section className="mt-16">
-          <div className="meta">01 — Activity</div>
-          <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2" role="radiogroup" aria-label="Activity">
-            {ACTIVITIES.map((a) => (
-              <button key={a.id} role="radio" aria-checked={activity === a.id} onClick={() => setActivity(a.id)}
-                className={`display text-[clamp(30px,3.6vw,46px)] transition-colors ${activity === a.id ? 'text-amber' : 'text-dim hover:text-paper'}`}>
-                {a.label}{activity === a.id && <span className="text-red">.</span>}
+        <div className="mt-12 space-y-12">
+          <Section n="01" label="Cover activity">
+            <div className="flex flex-wrap" role="radiogroup" aria-label="Activity">
+              {ACTIVITIES.map((a) => (
+                <button key={a.id} role="radio" aria-checked={activity === a.id} onClick={() => setActivity(a.id)}
+                  className={`title text-[clamp(24px,2.6vw,34px)] px-4 py-2 border-l-2 transition-colors ${activity === a.id ? 'border-signal text-bone bg-graphite' : 'border-transparent text-steel hover:text-light'}`}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section n="02" label="Objective">
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
+              placeholder={activity === 'watching' ? 'Watch Interstellar without distractions' : activity === 'reading' ? 'Read 30 pages' : 'Finish Java course chapter 5'}
+              className="field title !text-[clamp(28px,3.2vw,44px)] !normal-case !tracking-normal" />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={300}
+              placeholder="Optional notes. What does done look like?" className="field mt-3 text-[14px] resize-none" />
+          </Section>
+
+          <Section n="03" label="Duration · minutes">
+            <div className="flex flex-wrap items-end gap-x-1 gap-y-2">
+              {DURATIONS.map((d) => (
+                <button key={d} onClick={() => { setMinutes(d); setCustom(false); }}
+                  className={`headline text-[44px] tabular-nums w-[84px] py-2 text-left pl-3 border-b-2 transition-colors ${!custom && minutes === d ? 'text-bone border-signal' : 'text-steel/70 border-steel/20 hover:text-light'}`}>
+                  {d}
+                </button>
+              ))}
+              <label className={`flex items-end gap-2 py-2 pl-3 border-b-2 ${custom ? 'border-signal' : 'border-steel/20'}`}>
+                <span className="code-sm pb-2">Custom</span>
+                <input type="number" min={5} max={480} value={custom ? (Number.isFinite(minutes) ? minutes : '') : ''} placeholder="––"
+                  onFocus={() => setCustom(true)} onChange={(e) => { setCustom(true); setMinutes(parseInt(e.target.value, 10)); }}
+                  className="w-[72px] bg-transparent headline !text-[44px] outline-none tabular-nums placeholder:text-steel/40 [appearance:textfield]" />
+              </label>
+            </div>
+            {custom && !validMin && <p className="code-sm !text-signal mt-3">Between 5 and 480 minutes</p>}
+          </Section>
+
+          <Section n="04" label="Destinations">
+            <div className="grid md:grid-cols-2 gap-x-12 gap-y-10">
+              <DomainList title="Restricted" code="Targets" restricted
+                note="Opening these during the operation triggers an interrogation. Subdomains included."
+                items={restricted} setItems={setRestricted} suggestions={SUGGEST_RESTRICTED} other={allowed} />
+              <DomainList title="Cleared" code="Assets"
+                note="Sites the mission needs. A more specific address wins — allow youtube.com/watch while youtube.com is restricted."
+                items={allowed} setItems={setAllowed} suggestions={SUGGEST_ALLOWED} other={restricted} />
+            </div>
+          </Section>
+
+          <Section n="05" label="Authorisation">
+            <p className="text-[clamp(18px,1.9vw,24px)] leading-snug text-light max-w-[48ch]">
+              For <span className="text-bone font-semibold">{validMin ? `${minutes} minutes` : '—'}</span> I will be {activityOf(activity).verb}
+              {name.trim() ? <>: <span className="text-bone font-semibold">{name.trim()}</span></> : ''}. Any visit to{' '}
+              {restricted.length ? <span className="text-signal font-semibold">{restricted.map(prettySite).join(', ')}</span> : 'a restricted destination'} will be questioned.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-6">
+              <button className="btn btn-primary min-w-[300px] !text-[20px] !py-4" disabled={!canStart} onClick={start}>
+                {busy ? 'Opening operation…' : 'Start the investigation'} <span className="arrow">→</span>
               </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-16">
-          <div className="meta">02 — The mission</div>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
-            placeholder={activity === 'watching' ? 'Watch Interstellar without distractions' : activity === 'reading' ? 'Read 30 pages' : 'Finish Java course chapter 5'}
-            className="field mt-3 text-[clamp(24px,3vw,38px)] font-semibold tracking-tight" />
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={300}
-            placeholder="Optional details. What does done look like?" className="field mt-4 text-base resize-none" />
-        </section>
-
-        <section className="mt-16">
-          <div className="meta">03 — Duration, in minutes</div>
-          <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3">
-            {DURATIONS.map((d) => (
-              <button key={d} onClick={() => { setMinutes(d); setCustom(false); }}
-                className={`font-mono text-[34px] font-bold tabular-nums leading-none pb-2 border-b-2 transition-colors ${!custom && minutes === d ? 'text-amber border-amber' : 'text-dim border-transparent hover:text-paper'}`}>
-                {d}
-              </button>
-            ))}
-            <label className={`flex items-end gap-2 pb-2 border-b-2 ${custom ? 'border-amber' : 'border-transparent'}`}>
-              <span className={`text-sm pb-1 ${custom ? 'text-amber' : 'text-dim'}`}>custom</span>
-              <input type="number" min={5} max={480} value={custom ? minutes : ''} placeholder="—"
-                onFocus={() => setCustom(true)} onChange={(e) => { setCustom(true); setMinutes(parseInt(e.target.value, 10)); }}
-                className="w-20 bg-transparent font-mono text-[34px] font-bold leading-none outline-none text-amber placeholder:text-dim [appearance:textfield]" />
-            </label>
-          </div>
-          {custom && !validMin && <p className="text-xs text-red mt-2">Between 5 and 480 minutes.</p>}
-        </section>
-
-        <section className="mt-16">
-          <div className="meta">04 — Jurisdiction</div>
-          <div className="mt-5 grid sm:grid-cols-2 gap-12">
-            <DomainList title="Suspects" tone="red" note="Visiting these during the case triggers an interrogation. Subdomains are included." items={restricted} setItems={setRestricted} suggestions={SUGGEST_RESTRICTED} other={allowed} />
-            <DomainList title="Cleared" tone="paper" note="Sites you need for the mission. A more specific address here wins, e.g. allow youtube.com/watch while youtube.com is a suspect." items={allowed} setItems={setAllowed} suggestions={SUGGEST_ALLOWED} other={restricted} />
-          </div>
-        </section>
-
-        <section className="mt-20 pt-10 border-t border-smoke">
-          <div className="meta">05 — Statement for the record</div>
-          <p className="mt-5 text-[clamp(22px,2.6vw,32px)] leading-snug tracking-tight max-w-[30ch] text-paper/90">
-            For the next <span className="text-amber font-semibold">{validMin ? minutes : '—'} minutes</span> I will be {activityOf(activity).verb}
-            {name.trim() ? <>: <span className="text-amber font-semibold">“{name.trim()}”</span></> : <span className="text-dim"> (mission name required)</span>}.
-            {' '}I accept questioning on{' '}
-            {restricted.length ? <span className="text-red font-semibold">{restricted.map(prettySite).join(', ')}</span> : <span className="text-dim">(add at least one suspect)</span>}.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center gap-6">
-            <button className="btn-primary !text-[22px] !px-7 !py-4" disabled={!canStart} onClick={start}>
-              {busy ? 'Opening case…' : 'Start the investigation'} <ArrowRight size={20} />
-            </button>
-            <span className="text-xs text-mute max-w-[40ch]">Your browser will ask to let ASP access the {restricted.length + allowed.length} listed sites. That access is what lets it intercept them.</span>
-          </div>
-          {error && <p className="mt-5 text-sm text-red max-w-[60ch]">{error}</p>}
-        </section>
+              <span className="code-sm max-w-[40ch] normal-case tracking-normal leading-relaxed">
+                {missing.length ? `Missing: ${missing.join(', ')}.` : `Your browser will ask for access to the ${restricted.length + allowed.length} listed sites. That access is what allows interception.`}
+              </span>
+            </div>
+            {error && <p className="mt-5 text-[14px] text-signal max-w-[60ch] border-l-2 border-signal pl-4">{error}</p>}
+          </Section>
+        </div>
       </div>
     </div>
   );
